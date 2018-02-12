@@ -11,23 +11,24 @@ morgan.token('body', function getBody (req) {
 	return JSON.stringify(req.body)
 })
 app.use(morgan(function (tokens, req, res) {
-  return [
-    tokens.method(req, res),
-    tokens.url(req, res),
-    tokens.status(req, res),
-    tokens.res(req, res, 'content-length'), '-',
-	tokens.body(req, res), '-',
-    tokens['response-time'](req, res), 'ms'
-  ].join(' ')
+	return [
+		tokens.method(req, res),
+		tokens.url(req, res),
+		tokens.status(req, res),
+		tokens.res(req, res, 'content-length'), '-',
+		tokens.body(req, res), '-',
+		tokens['response-time'](req, res), 'ms'
+	].join(' ')
 }))
 app.use(cors())
 app.use(express.static('build'))
 
 const formatHenkilo = (henkilo) => {
-	const formattedHenkilo = { ...henkilo._doc, id: henkilo._id }
-	delete formattedHenkilo._id
-	delete formattedHenkilo.__v
-	return formattedHenkilo
+	return {
+		name: henkilo.name,
+		number: henkilo.number,
+		id: henkilo._id
+	}
 }
 
 let persons = []
@@ -47,13 +48,13 @@ app.get('/api/persons', (req, res) => {
 app.post('/api/persons', (req, res) => {
 	if(req.body.name === undefined) {
 		res.status(400).json({
-			error: "Parametri name puuttuu."
+			error: 'Parametri name puuttuu.'
 		})
 		return
 	}
 	if(req.body.number === undefined) {
 		res.status(400).json({
-			error: "Parametri number puuttuu."
+			error: 'Parametri number puuttuu.'
 		})
 		return
 	}
@@ -62,7 +63,7 @@ app.post('/api/persons', (req, res) => {
 	}) !== undefined
 	) {
 		res.status(405).json({
-			error: "Henkilö on jo puhelinluettelossa."
+			error: 'Henkilö on jo puhelinluettelossa.'
 		})
 		return
 	}
@@ -76,7 +77,7 @@ app.post('/api/persons', (req, res) => {
 			Henkilo
 				.find({ name: req.body.name })
 				.then( result => {
-					uusi_henkilo = formatHenkilo(result[0])
+					const uusi_henkilo = formatHenkilo(result[0])
 					persons.push(uusi_henkilo)
 					res.status(200).json({
 						id: uusi_henkilo.id
@@ -86,12 +87,12 @@ app.post('/api/persons', (req, res) => {
 })
 
 app.get('/api/persons/:id', (req, res) => {
-	res_json = persons.find( person => {
+	const res_json = persons.find( person => {
 		return String(person.id) === req.params.id
 	})
 	if(res_json === undefined) {
 		res.status(404).json({
-			error: "ID:llä ei löytynyyt ketään henkilöä."
+			error: 'ID:llä ei löytynyyt ketään henkilöä.'
 		})
 	} else {
 		res.json(res_json)
@@ -99,12 +100,12 @@ app.get('/api/persons/:id', (req, res) => {
 })
 
 app.delete('/api/persons/:id', (req, res) => {
-	to_delete = persons.findIndex( person => {
+	const to_delete = persons.findIndex( person => {
 		return String(person.id) === req.params.id
 	})
 	if(to_delete === -1) {
 		res.status(404).json({
-			error: "ID:llä ei löytynyyt ketään henkilöä."
+			error: 'ID:llä ei löytynyyt ketään henkilöä.'
 		})
 	} else {
 		Henkilo
@@ -125,5 +126,5 @@ app.get('/info', (req, res) => {
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`)
+	console.log(`Server running on port ${PORT}`)
 })
