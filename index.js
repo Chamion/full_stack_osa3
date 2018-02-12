@@ -2,6 +2,7 @@ const express = require('express')
 const bodyParser = require('body-parser')
 const morgan = require('morgan')
 const cors = require('cors')
+const Henkilo = require('./models/henkilo')
 
 const app = express()
 app.set('view engine', 'ejs')
@@ -22,28 +23,22 @@ app.use(morgan(function (tokens, req, res) {
 app.use(cors())
 app.use(express.static('build'))
 
-let persons = [
-	{
-		"name": "Arto Hellas",
-		"number": "040-123456",
-		"id": 1
-	},
-	{
-		"name": "Martti Tienari",
-		"number": "040-123456",
-		"id": 2
-	},
-	{
-		"name": "Arto Järvinen",
-		"number": "040-123456",
-		"id": 3
-	},
-	{
-		"name": "Lea Kutvonen",
-		"number": "040-123456",
-		"id": 4
-	}
-]
+const formatHenkilo = (henkilo) => {
+	const formattedHenkilo = { ...henkilo._doc, id: henkilo._id }
+	delete formattedHenkilo._id
+	delete formattedHenkilo.__v
+	return formattedHenkilo
+}
+
+let persons = []
+
+Henkilo
+	.find({})
+	.then( res => {
+		res.forEach( henkilo => {
+			persons.push(formatHenkilo(henkilo))
+		})
+	})
 
 app.get('/api/persons', (req, res) => {
 	res.json(persons)
@@ -71,26 +66,28 @@ app.post('/api/persons', (req, res) => {
 		})
 		return
 	}
-	var uusi_id = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
-	while(persons.find( person => {
-		return person.id === uusi_id
-	}) !== undefined
-	) {
-		uusi_id = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
-	}
-	persons.push({
-		"name": req.body.name,
-		"number": req.body.number,
-		"id": uusi_id
+	const henkilo = new Henkilo({
+		name: req.body.name,
+		number: req.body.number
 	})
-	res.status(200).json({
-		id: uusi_id
-	})
+	henkilo
+		.save()
+		.then(a => {
+			Henkilo
+				.find({ name: req.body.name })
+				.then( result => {
+					uusi_henkilo = formatHenkilo(result[0])
+					persons.push(uusi_henkilo)
+					res.status(200).json({
+						id: uusi_henkilo.id
+					})
+				})
+		})
 })
 
 app.get('/api/persons/:id', (req, res) => {
 	res_json = persons.find( person => {
-		return person.id === Number(req.params.id)
+		return String(person.id) === req.params.id
 	})
 	if(res_json === undefined) {
 		res.status(404).json({
@@ -103,15 +100,19 @@ app.get('/api/persons/:id', (req, res) => {
 
 app.delete('/api/persons/:id', (req, res) => {
 	to_delete = persons.findIndex( person => {
-		return person.id === Number(req.params.id)
+		return String(person.id) === req.params.id
 	})
 	if(to_delete === -1) {
 		res.status(404).json({
 			error: "ID:llä ei löytynyyt ketään henkilöä."
 		})
 	} else {
-		delete persons.splice(to_delete, 1)
-		res.status(204).send()
+		Henkilo
+			.findByIdAndRemove(req.params.id)
+			.then(a => {
+				delete persons.splice(to_delete, 1)
+				res.status(204).send()
+			})
 	}
 })
 
